@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 set BUILDDIR=%~dp0
-set PATH=%BUILDDIR%.deps\llvm-mingw\bin;%BUILDDIR%.deps\clang\bin;%BUILDDIR%.deps;%PATH%
+set PATH=%BUILDDIR%.deps\clang\bin;%BUILDDIR%.deps\llvm-mingw\bin;%BUILDDIR%.deps;%PATH%
 set PATHEXT=.exe
 cd /d %BUILDDIR% || exit /b 1
 
@@ -18,7 +18,7 @@ if exist .deps\prepared goto :render
 	for /f "tokens=2 delims=:," %%v in ('curl -s https://api.github.com/repos/llvm/llvm-project/releases/latest ^| findstr /i "tag_name"') do set CLANG_TAG=%%~v
 	set CLANG_TAG=%CLANG_TAG:"=%
 	call :download clang.zip https://github.com/llvm/llvm-project/releases/download/%CLANG_TAG%/LLVM-%CLANG_TAG%-win64.zip || goto :error
-	rename LLVM-%CLANG_TAG%-win64 clang
+	rename LLVM-%CLANG_TAG%-win64 clang 2> NUL
 
 	for /f "tokens=2 delims=:," %%v in ('curl -s https://api.github.com/repos/ImageMagick/ImageMagick/releases/latest ^| findstr /i "tag_name"') do set IM_TAG=%%~v
 	set IM_TAG=%IM_TAG:"=%
@@ -74,18 +74,27 @@ if exist .deps\prepared goto :render
 	set GOARCH=%~3
 	mkdir %1 >NUL 2>&1
 	%~2-w64-mingw32-windres -I ".deps\wireguard-nt\bin\%~1" -DWIREGUARD_VERSION_ARRAY=%WIREGUARD_VERSION_ARRAY% -DWIREGUARD_VERSION_STR=%WIREGUARD_VERSION% -i resources.rc -o "resources_%~3.syso" -O coff -c 65001 || exit /b %errorlevel%
+
 	set CGO_ENABLED=1
-	set CC=%~2-w64-mingw32-clang
+	set CC=%BUILDDIR%.deps\clang\bin\clang.exe
+
 	if "%~3"=="amd64" (
-		set CFLAGS=-mcpu=skylake
+		set "CGO_CFLAGS=-mcpu=skylake"
+		set "CGO_LDFLAGS=-mcpu=skylake"
 	) else if "%~3"=="aarch64" (
-		set CFLAGS=-mcpu=generic
+		set "CGO_CFLAGS=-march=armv8-a -mcpu=generic"
+		set "CGO_LDFLAGS=-march=armv8-a -mcpu=generic"
+	) else (
+		set "CGO_CFLAGS="
+		set "CGO_LDFLAGS="
 	)
-	go build -tags load_wgnt_from_rsrc -ldflags="-H windowsgui -s -w" -trimpath -buildvcs=false -v -o "%~1\wireguard.exe" || exit /b 1
+
+	set "GO_CMD=go build -tags load_wgnt_from_rsrc -ldflags=-H\ windowsgui\ -s\ -w -trimpath -buildvcs=false -v -o "%~1\wireguard.exe""
+	cmd /c set CC=%CC%&& set CGO_CFLAGS=%CGO_CFLAGS%&& set CGO_LDFLAGS=%CGO_LDFLAGS%&& %GO_CMD% || exit /b 1
+
 	if not exist "%~1\wg.exe" (
 		del .deps\src\*.exe .deps\src\*.o .deps\src\wincompat\*.o .deps\src\wincompat\*.lib 2> NUL
-		set LDFLAGS=-s
-		make --no-print-directory -C .deps\src PLATFORM=windows CC=%CC% WINDRES=%~2-w64-mingw32-windres V=1 RUNSTATEDIR= SYSTEMDUNITDIR= -j%NUMBER_OF_PROCESSORS% || exit /b 1
+		make --no-print-directory -C .deps\src PLATFORM=windows CC="%CC%" WINDRES=%~2-w64-mingw32-windres V=1 RUNSTATEDIR= SYSTEMDUNITDIR= -j%NUMBER_OF_PROCESSORS% || exit /b 1
 		move /Y .deps\src\wg.exe "%~1\wg.exe" > NUL || exit /b 1
 	)
 	goto :eof
