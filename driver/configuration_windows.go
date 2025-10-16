@@ -70,6 +70,21 @@ type Interface struct {
 	PublicKey  [32]byte
 	PeerCount  uint32
 	_          [4]byte
+	// AmneziaWG obfuscation parameters
+	JunkPacketCount            uint16
+	JunkPacketMinSize          uint16
+	JunkPacketMaxSize          uint16
+	InitPacketJunkSize         uint16
+	ResponsePacketJunkSize     uint16
+	CookieReplyPacketJunkSize  uint16
+	TransportPacketJunkSize    uint16
+	_                          uint16
+	InitPacketMagicHeader      uint32
+	ResponsePacketMagicHeader  uint32
+	UnderloadPacketMagicHeader uint32
+	TransportPacketMagicHeader uint32
+	ITime                      uint32
+	_                          [4]byte
 }
 
 var (

@@ -26,6 +26,7 @@ func (conf *Config) ToWgQuick() string {
 		output.WriteString(fmt.Sprintf("ListenPort = %d\n", conf.Interface.ListenPort))
 	}
 
+	// AmneziaWG obfuscation parameters
 	if conf.Interface.JunkPacketCount > 0 {
 		output.WriteString(fmt.Sprintf("Jc = %d\n", conf.Interface.JunkPacketCount))
 	}
@@ -70,22 +71,12 @@ func (conf *Config) ToWgQuick() string {
 		output.WriteString(fmt.Sprintf("H4 = %d\n", conf.Interface.TransportPacketMagicHeader))
 	}
 
-	if len(conf.Interface.IPackets) > 0 {
-		tags := []string{"i1", "i2", "i3", "i4", "i5"}
-		for _, key := range tags {
-			if val, ok := conf.Interface.IPackets[key]; ok {
-				output.WriteString(fmt.Sprintf("%s = %s\n", strings.ToUpper(key), val))
-			}
-		}
+	for key, value := range conf.Interface.IPackets {
+		output.WriteString(fmt.Sprintf("%s = %s\n", strings.ToUpper(key), value))
 	}
 
-	if len(conf.Interface.JPackets) > 0 {
-		tags := []string{"j1", "j2", "j3"}
-		for _, key := range tags {
-			if val, ok := conf.Interface.JPackets[key]; ok {
-				output.WriteString(fmt.Sprintf("%s = %s\n", strings.ToUpper(key), val))
-			}
-		}
+	for key, value := range conf.Interface.JPackets {
+		output.WriteString(fmt.Sprintf("%s = %s\n", strings.ToUpper(key), value))
 	}
 
 	if conf.Interface.ITime > 0 {
@@ -165,10 +156,22 @@ func (config *Config) ToDriverConfiguration() (*driver.Interface, uint32) {
 	var c driver.ConfigBuilder
 	c.Preallocate(uint32(preallocation))
 	c.AppendInterface(&driver.Interface{
-		Flags:      driver.InterfaceHasPrivateKey | driver.InterfaceHasListenPort,
-		ListenPort: config.Interface.ListenPort,
-		PrivateKey: config.Interface.PrivateKey,
-		PeerCount:  uint32(len(config.Peers)),
+		Flags:                      driver.InterfaceHasPrivateKey | driver.InterfaceHasListenPort,
+		ListenPort:                 config.Interface.ListenPort,
+		PrivateKey:                 config.Interface.PrivateKey,
+		PeerCount:                  uint32(len(config.Peers)),
+		JunkPacketCount:            config.Interface.JunkPacketCount,
+		JunkPacketMinSize:          config.Interface.JunkPacketMinSize,
+		JunkPacketMaxSize:          config.Interface.JunkPacketMaxSize,
+		InitPacketJunkSize:         config.Interface.InitPacketJunkSize,
+		ResponsePacketJunkSize:     config.Interface.ResponsePacketJunkSize,
+		CookieReplyPacketJunkSize:  config.Interface.CookieReplyPacketJunkSize,
+		TransportPacketJunkSize:    config.Interface.TransportPacketJunkSize,
+		InitPacketMagicHeader:      config.Interface.InitPacketMagicHeader,
+		ResponsePacketMagicHeader:  config.Interface.ResponsePacketMagicHeader,
+		UnderloadPacketMagicHeader: config.Interface.UnderloadPacketMagicHeader,
+		TransportPacketMagicHeader: config.Interface.TransportPacketMagicHeader,
+		ITime:                      config.Interface.ITime,
 	})
 	for i := range config.Peers {
 		flags := driver.PeerHasPublicKey | driver.PeerHasPersistentKeepalive

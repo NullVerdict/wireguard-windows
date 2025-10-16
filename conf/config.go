@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -50,6 +51,8 @@ type Interface struct {
 	PreDown    string
 	PostDown   string
 	TableOff   bool
+
+	// AmneziaWG obfuscation parameters
 	JunkPacketCount            uint16
 	JunkPacketMinSize          uint16
 	JunkPacketMaxSize          uint16
@@ -61,9 +64,10 @@ type Interface struct {
 	ResponsePacketMagicHeader  uint32
 	UnderloadPacketMagicHeader uint32
 	TransportPacketMagicHeader uint32
-	IPackets                   map[string]string
-	JPackets                   map[string]string
-	ITime                      uint32
+
+	IPackets map[string]string
+	JPackets map[string]string
+	ITime    uint32
 }
 
 type Peer struct {
@@ -120,6 +124,10 @@ func (e *Endpoint) IsEmpty() bool {
 
 func (k *Key) String() string {
 	return base64.StdEncoding.EncodeToString(k[:])
+}
+
+func (k *Key) HexString() string {
+	return hex.EncodeToString(k[:])
 }
 
 func (k *Key) IsZero() bool {
