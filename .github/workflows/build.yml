@@ -1,0 +1,99 @@
+name: CI Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ci-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (OS: ${{ matrix.os }}, GOOS: ${{ matrix.goos }}, GOARCH: ${{ matrix.goarch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            ext: ""
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            ext: ""
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            ext: ".exe"
+          - os: windows-latest
+            goos: windows
+            goarch: arm64
+            ext: ".exe"
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            ext: ""
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            ext: ""
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go (latest stable 1.x)
+        uses: actions/setup-go@v4
+        with:
+          # '1.x' tells setup-go to use the latest stable Go 1.* release available on the runner.
+          go-version: '1.x'
+
+      - name: Cache Go build & module cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            $HOME/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - name: Show Go version
+        run: go version
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build binaries (finds all main packages and builds them)
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          set -e
+          mkdir -p build
+          mains=($(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' || true))
+          if [ ${#mains[@]} -eq 0 ]; then
+            echo "No main packages found; attempting to build repository root as a binary"
+            go build -trimpath -ldflags "-s -w" -o build/${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
+          else
+            for p in "${mains[@]}"; do
+              # use the last path segment as binary name
+              binname=$(basename "$p")
+              out=build/${binname}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+              echo "Building $p -> $out"
+              go build -trimpath -ldflags "-s -w" -o "$out" "$p"
+            done
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: build/**
+          retention-days: 7
