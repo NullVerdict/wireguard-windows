@@ -248,13 +248,20 @@ func (service *tunnelService) Execute(args []string, r <-chan svc.ChangeRequest,
 }
 
 func Run(confPath string) error {
-	name, err := conf.NameFromPath(confPath)
-	if err != nil {
-		return err
-	}
-	serviceName, err := conf.ServiceNameOfTunnel(name)
-	if err != nil {
-		return err
-	}
-	return svc.Run(serviceName, &tunnelService{confPath})
+    name, err := conf.NameFromPath(confPath)
+    if err != nil {
+        return err
+    }
+    serviceName, err := conf.ServiceNameOfTunnel(name)
+    if err != nil {
+        return err
+    }
+    // If obfuscation-related settings are present and userspace backend is available,
+    // run the userspace service (only when built with the 'amnezia' tag).
+    if cfg, err := conf.LoadFromPath(confPath); err == nil && needsUserspaceObfuscation(cfg) {
+        if handled, err2 := maybeRunUserspace(confPath, serviceName); handled {
+            return err2
+        }
+    }
+    return svc.Run(serviceName, &tunnelService{confPath})
 }

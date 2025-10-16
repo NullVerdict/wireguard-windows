@@ -28,7 +28,6 @@ const (
 	highlightDelimiter
 	highlightTable
 	highlightCmd
-	highlightObfuscation
 	highlightError
 )
 
@@ -269,19 +268,6 @@ func (s stringSpan) isValidPersistentKeepAlive() bool {
 	return s.isValidUint(false, 0, 65535)
 }
 
-func (s stringSpan) isValidUint16() bool {
-	return s.isValidUint(true, 0, 65535)
-}
-
-func (s stringSpan) isValidUint32() bool {
-	return s.isValidUint(true, 0, (1<<32)-1)
-}
-
-func (s stringSpan) isValidObfuscationString() bool {
-	// Allow empty values for I* and J* fields
-	return true
-}
-
 // It's probably not worthwhile to try to validate a bash expression. So instead we just demand non-zero length.
 func (s stringSpan) isValidPrePostUpDown() bool {
 	return s.len != 0
@@ -384,27 +370,6 @@ const (
 	fieldPostUp
 	fieldPreDown
 	fieldPostDown
-	// AmneziaWG obfuscation fields
-	fieldJc
-	fieldJmin
-	fieldJmax
-	fieldS1
-	fieldS2
-	fieldS3
-	fieldS4
-	fieldH1
-	fieldH2
-	fieldH3
-	fieldH4
-	fieldI1
-	fieldI2
-	fieldI3
-	fieldI4
-	fieldI5
-	fieldJ1
-	fieldJ2
-	fieldJ3
-	fieldItime
 	fieldPeerSection
 	fieldPublicKey
 	fieldPresharedKey
@@ -456,47 +421,6 @@ func (s stringSpan) field() field {
 		return fieldPreDown
 	case s.isCaselessSame("PostDown"):
 		return fieldPostDown
-	// AmneziaWG obfuscation fields
-	case s.isCaselessSame("Jc"):
-		return fieldJc
-	case s.isCaselessSame("Jmin"):
-		return fieldJmin
-	case s.isCaselessSame("Jmax"):
-		return fieldJmax
-	case s.isCaselessSame("S1"):
-		return fieldS1
-	case s.isCaselessSame("S2"):
-		return fieldS2
-	case s.isCaselessSame("S3"):
-		return fieldS3
-	case s.isCaselessSame("S4"):
-		return fieldS4
-	case s.isCaselessSame("H1"):
-		return fieldH1
-	case s.isCaselessSame("H2"):
-		return fieldH2
-	case s.isCaselessSame("H3"):
-		return fieldH3
-	case s.isCaselessSame("H4"):
-		return fieldH4
-	case s.isCaselessSame("I1"):
-		return fieldI1
-	case s.isCaselessSame("I2"):
-		return fieldI2
-	case s.isCaselessSame("I3"):
-		return fieldI3
-	case s.isCaselessSame("I4"):
-		return fieldI4
-	case s.isCaselessSame("I5"):
-		return fieldI5
-	case s.isCaselessSame("J1"):
-		return fieldJ1
-	case s.isCaselessSame("J2"):
-		return fieldJ2
-	case s.isCaselessSame("J3"):
-		return fieldJ3
-	case s.isCaselessSame("Itime"):
-		return fieldItime
 	}
 	return fieldInvalid
 }
@@ -600,13 +524,6 @@ func (hsa *highlightSpanArray) highlightValue(parent, s stringSpan, section fiel
 		hsa.append(parent.s, s, validateHighlight(s.isValidPort(), highlightPort))
 	case fieldPersistentKeepalive:
 		hsa.append(parent.s, s, validateHighlight(s.isValidPersistentKeepAlive(), highlightKeepalive))
-	// AmneziaWG obfuscation fields
-	case fieldJc, fieldJmin, fieldJmax, fieldS1, fieldS2, fieldS3, fieldS4:
-		hsa.append(parent.s, s, validateHighlight(s.isValidUint16(), highlightObfuscation))
-	case fieldH1, fieldH2, fieldH3, fieldH4, fieldItime:
-		hsa.append(parent.s, s, validateHighlight(s.isValidUint32(), highlightObfuscation))
-	case fieldI1, fieldI2, fieldI3, fieldI4, fieldI5, fieldJ1, fieldJ2, fieldJ3:
-		hsa.append(parent.s, s, validateHighlight(s.isValidObfuscationString(), highlightObfuscation))
 	case fieldEndpoint:
 		if !s.isValidEndpoint() {
 			hsa.append(parent.s, s, highlightError)

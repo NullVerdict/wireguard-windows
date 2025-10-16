@@ -52,7 +52,6 @@ type Interface struct {
 	PostDown   string
 	TableOff   bool
 
-	// AmneziaWG obfuscation parameters
 	JunkPacketCount            uint16
 	JunkPacketMinSize          uint16
 	JunkPacketMaxSize          uint16
