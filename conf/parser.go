@@ -94,28 +94,6 @@ func parsePort(s string) (uint16, error) {
 	return uint16(m), nil
 }
 
-func parseUint16(value, name string) (uint16, error) {
-	m, err := strconv.Atoi(value)
-	if err != nil {
-		return 0, err
-	}
-	if m < 0 || m > 65535 {
-		return 0, &ParseError{l18n.Sprintf("Invalid %s", name), value}
-	}
-	return uint16(m), nil
-}
-
-func parseUint32(value, name string) (uint32, error) {
-	m, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	if m < 0 || m > 4294967295 {
-		return 0, &ParseError{l18n.Sprintf("Invalid %s", name), value}
-	}
-	return uint32(m), nil
-}
-
 func parsePersistentKeepalive(s string) (uint16, error) {
 	if s == "off" {
 		return 0, nil
@@ -232,88 +210,6 @@ func FromWgQuick(s, name string) (*Config, error) {
 					return nil, err
 				}
 				conf.Interface.ListenPort = p
-			case "jc":
-				v, err := parseUint16(val, "junkPacketCount")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.JunkPacketCount = v
-			case "jmin":
-				v, err := parseUint16(val, "junkPacketMinSize")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.JunkPacketMinSize = v
-			case "jmax":
-				v, err := parseUint16(val, "junkPacketMaxSize")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.JunkPacketMaxSize = v
-			case "s1":
-				v, err := parseUint16(val, "initPacketJunkSize")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.InitPacketJunkSize = v
-			case "s2":
-				v, err := parseUint16(val, "responsePacketJunkSize")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.ResponsePacketJunkSize = v
-			case "s3":
-				v, err := parseUint16(val, "cookieReplyPacketJunkSize")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.CookieReplyPacketJunkSize = v
-			case "s4":
-				v, err := parseUint16(val, "transportPacketJunkSize")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.TransportPacketJunkSize = v
-			case "h1":
-				v, err := parseUint32(val, "initPacketMagicHeader")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.InitPacketMagicHeader = v
-			case "h2":
-				v, err := parseUint32(val, "responsePacketMagicHeader")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.ResponsePacketMagicHeader = v
-			case "h3":
-				v, err := parseUint32(val, "underloadPacketMagicHeader")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.UnderloadPacketMagicHeader = v
-			case "h4":
-				v, err := parseUint32(val, "transportPacketMagicHeader")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.TransportPacketMagicHeader = v
-			case "i1", "i2", "i3", "i4", "i5":
-				if conf.Interface.IPackets == nil {
-					conf.Interface.IPackets = make(map[string]string)
-				}
-				conf.Interface.IPackets[key] = val
-			case "j1", "j2", "j3":
-				if conf.Interface.JPackets == nil {
-					conf.Interface.JPackets = make(map[string]string)
-				}
-				conf.Interface.JPackets[key] = val
-			case "itime":
-				v, err := parseUint32(val, "itime")
-				if err != nil {
-					return nil, err
-				}
-				conf.Interface.ITime = v
 			case "mtu":
 				m, err := parseMTU(val)
 				if err != nil {
