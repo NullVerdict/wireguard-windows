@@ -7,6 +7,7 @@ package conf
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -17,6 +18,18 @@ import (
 	"golang.zx2c4.com/wireguard/windows/driver"
 	"golang.zx2c4.com/wireguard/windows/l18n"
 )
+
+var specialHandshakeTags = map[string]struct{}{
+	"i1":    {},
+	"i2":    {},
+	"i3":    {},
+	"i4":    {},
+	"i5":    {},
+	"j1":    {},
+	"j2":    {},
+	"j3":    {},
+	"itime": {},
+}
 
 type ParseError struct {
 	why      string
@@ -94,18 +107,27 @@ func parsePort(s string) (uint16, error) {
 	return uint16(m), nil
 }
 
+func parseUint16(value, name string) (uint16, error) {
+	v, err := strconv.ParseUint(value, 10, 16)
+	if err != nil {
+		return 0, &ParseError{l18n.Sprintf("Invalid %s", name), value}
+	}
+	return uint16(v), nil
+}
+
+func parseUint32(value, name string) (uint32, error) {
+	v, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0, &ParseError{l18n.Sprintf("Invalid %s", name), value}
+	}
+	return uint32(v), nil
+}
+
 func parsePersistentKeepalive(s string) (uint16, error) {
 	if s == "off" {
 		return 0, nil
 	}
-	m, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, err
-	}
-	if m < 0 || m > 65535 {
-		return 0, &ParseError{l18n.Sprintf("Invalid persistent keepalive"), s}
-	}
-	return uint16(m), nil
+	return parseUint16(s, "persistent keepalive")
 }
 
 func parseTableOff(s string) (bool, error) {
@@ -120,6 +142,19 @@ func parseTableOff(s string) (bool, error) {
 
 func parseKeyBase64(s string) (*Key, error) {
 	k, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, &ParseError{l18n.Sprintf("Invalid key: %v", err), s}
+	}
+	if len(k) != KeyLength {
+		return nil, &ParseError{l18n.Sprintf("Keys must decode to exactly 32 bytes"), s}
+	}
+	var key Key
+	copy(key[:], k)
+	return &key, nil
+}
+
+func parseKeyHex(s string) (*Key, error) {
+	k, err := hex.DecodeString(s)
 	if err != nil {
 		return nil, &ParseError{l18n.Sprintf("Invalid key: %v", err), s}
 	}
@@ -192,7 +227,7 @@ func FromWgQuick(s, name string) (*Config, error) {
 			return nil, &ParseError{l18n.Sprintf("Config key is missing an equals separator"), line}
 		}
 		key, val := strings.TrimSpace(lineLower[:equals]), strings.TrimSpace(line[equals+1:])
-		if len(val) == 0 {
+		if _, ok := specialHandshakeTags[key]; !ok && len(val) == 0 {
 			return nil, &ParseError{l18n.Sprintf("Key must have a value"), line}
 		}
 		if parserState == inInterfaceSection {
@@ -210,6 +245,97 @@ func FromWgQuick(s, name string) (*Config, error) {
 					return nil, err
 				}
 				conf.Interface.ListenPort = p
+			case "jc":
+				p, err := parseUint16(val, "junkPacketCount")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.JunkPacketCount = p
+			case "jmin":
+				p, err := parseUint16(val, "junkPacketMinSize")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.JunkPacketMinSize = p
+			case "jmax":
+				p, err := parseUint16(val, "junkPacketMaxSize")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.JunkPacketMaxSize = p
+			case "s1":
+				p, err := parseUint16(val, "initPacketJunkSize")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.InitPacketJunkSize = p
+			case "s2":
+				p, err := parseUint16(val, "responsePacketJunkSize")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.ResponsePacketJunkSize = p
+			case "s3":
+				p, err := parseUint16(val, "cookieReplyPacketJunkSize")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.CookieReplyPacketJunkSize = p
+			case "s4":
+				p, err := parseUint16(val, "transportPacketJunkSize")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.TransportPacketJunkSize = p
+			case "h1":
+				v, err := parseUint32(val, "initPacketMagicHeader")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.InitPacketMagicHeader = v
+			case "h2":
+				v, err := parseUint32(val, "responsePacketMagicHeader")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.ResponsePacketMagicHeader = v
+			case "h3":
+				v, err := parseUint32(val, "underloadPacketMagicHeader")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.UnderloadPacketMagicHeader = v
+			case "h4":
+				v, err := parseUint32(val, "transportPacketMagicHeader")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.TransportPacketMagicHeader = v
+			case "i1", "i2", "i3", "i4", "i5":
+				if len(val) == 0 {
+					continue
+				}
+				if conf.Interface.IPackets == nil {
+					conf.Interface.IPackets = make(map[string]string)
+				}
+				conf.Interface.IPackets[key] = val
+			case "j1", "j2", "j3":
+				if len(val) == 0 {
+					continue
+				}
+				if conf.Interface.JPackets == nil {
+					conf.Interface.JPackets = make(map[string]string)
+				}
+				conf.Interface.JPackets[key] = val
+			case "itime":
+				if len(val) == 0 {
+					continue
+				}
+				v, err := parseUint32(val, "itime")
+				if err != nil {
+					return nil, err
+				}
+				conf.Interface.ITime = v
 			case "mtu":
 				m, err := parseMTU(val)
 				if err != nil {

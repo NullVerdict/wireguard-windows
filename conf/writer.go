@@ -26,6 +26,72 @@ func (conf *Config) ToWgQuick() string {
 		output.WriteString(fmt.Sprintf("ListenPort = %d\n", conf.Interface.ListenPort))
 	}
 
+	if conf.Interface.JunkPacketCount > 0 {
+		output.WriteString(fmt.Sprintf("Jc = %d\n", conf.Interface.JunkPacketCount))
+	}
+
+	if conf.Interface.JunkPacketMinSize > 0 {
+		output.WriteString(fmt.Sprintf("Jmin = %d\n", conf.Interface.JunkPacketMinSize))
+	}
+
+	if conf.Interface.JunkPacketMaxSize > 0 {
+		output.WriteString(fmt.Sprintf("Jmax = %d\n", conf.Interface.JunkPacketMaxSize))
+	}
+
+	if conf.Interface.InitPacketJunkSize > 0 {
+		output.WriteString(fmt.Sprintf("S1 = %d\n", conf.Interface.InitPacketJunkSize))
+	}
+
+	if conf.Interface.ResponsePacketJunkSize > 0 {
+		output.WriteString(fmt.Sprintf("S2 = %d\n", conf.Interface.ResponsePacketJunkSize))
+	}
+
+	if conf.Interface.CookieReplyPacketJunkSize > 0 {
+		output.WriteString(fmt.Sprintf("S3 = %d\n", conf.Interface.CookieReplyPacketJunkSize))
+	}
+
+	if conf.Interface.TransportPacketJunkSize > 0 {
+		output.WriteString(fmt.Sprintf("S4 = %d\n", conf.Interface.TransportPacketJunkSize))
+	}
+
+	if conf.Interface.InitPacketMagicHeader > 0 {
+		output.WriteString(fmt.Sprintf("H1 = %d\n", conf.Interface.InitPacketMagicHeader))
+	}
+
+	if conf.Interface.ResponsePacketMagicHeader > 0 {
+		output.WriteString(fmt.Sprintf("H2 = %d\n", conf.Interface.ResponsePacketMagicHeader))
+	}
+
+	if conf.Interface.UnderloadPacketMagicHeader > 0 {
+		output.WriteString(fmt.Sprintf("H3 = %d\n", conf.Interface.UnderloadPacketMagicHeader))
+	}
+
+	if conf.Interface.TransportPacketMagicHeader > 0 {
+		output.WriteString(fmt.Sprintf("H4 = %d\n", conf.Interface.TransportPacketMagicHeader))
+	}
+
+	if len(conf.Interface.IPackets) > 0 {
+		tags := []string{"i1", "i2", "i3", "i4", "i5"}
+		for _, key := range tags {
+			if val, ok := conf.Interface.IPackets[key]; ok {
+				output.WriteString(fmt.Sprintf("%s = %s\n", strings.ToUpper(key), val))
+			}
+		}
+	}
+
+	if len(conf.Interface.JPackets) > 0 {
+		tags := []string{"j1", "j2", "j3"}
+		for _, key := range tags {
+			if val, ok := conf.Interface.JPackets[key]; ok {
+				output.WriteString(fmt.Sprintf("%s = %s\n", strings.ToUpper(key), val))
+			}
+		}
+	}
+
+	if conf.Interface.ITime > 0 {
+		output.WriteString(fmt.Sprintf("Itime = %d\n", conf.Interface.ITime))
+	}
+
 	if len(conf.Interface.Addresses) > 0 {
 		addrStrings := make([]string, len(conf.Interface.Addresses))
 		for i, address := range conf.Interface.Addresses {
