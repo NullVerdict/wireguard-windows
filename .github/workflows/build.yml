@@ -4,6 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 concurrency:
   group: ci-build-${{ github.ref }}
@@ -14,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: Build (OS: ${{ matrix.os }}, GOOS: ${{ matrix.goos }}, GOARCH: ${{ matrix.goarch }})
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -47,11 +48,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go (latest stable 1.x)
+      - name: Set up Go (latest)
         uses: actions/setup-go@v4
         with:
-          # '1.x' tells setup-go to use the latest stable Go 1.* release available on the runner.
-          go-version: '1.x'
+          go-version: 'latest'
 
       - name: Cache Go build & module cache
         uses: actions/cache@v4
@@ -60,7 +60,8 @@ jobs:
             ~/.cache/go-build
             $HOME/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Show Go version
         run: go version
@@ -83,7 +84,6 @@ jobs:
             go build -trimpath -ldflags "-s -w" -o build/${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
           else
             for p in "${mains[@]}"; do
-              # use the last path segment as binary name
               binname=$(basename "$p")
               out=build/${binname}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
               echo "Building $p -> $out"
