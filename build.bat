@@ -79,23 +79,27 @@ if exist .deps\prepared goto :render
 	set CC=%BUILDDIR%.deps\clang\bin\clang.exe
 
 	if "%~3"=="amd64" (
-		set "CGO_CFLAGS=-mcpu=skylake"
-		set "CGO_LDFLAGS=-mcpu=skylake"
+	    set "CGO_CFLAGS=-mcpu=skylake"
+	    set "CGO_LDFLAGS=-mcpu=skylake"
 	) else if "%~3"=="aarch64" (
-		set "CGO_CFLAGS=-march=armv8-a -mcpu=generic"
-		set "CGO_LDFLAGS=-march=armv8-a -mcpu=generic"
+	    set "CGO_CFLAGS=-march=armv8-a -mcpu=generic"
+	    set "CGO_LDFLAGS=-march=armv8-a -mcpu=generic"
 	) else (
-		set "CGO_CFLAGS="
-		set "CGO_LDFLAGS="
+	    set "CGO_CFLAGS="
+	    set "CGO_LDFLAGS="
 	)
 
-	set "GO_CMD=go build -tags load_wgnt_from_rsrc -ldflags=-H\ windowsgui\ -s\ -w -trimpath -buildvcs=false -v -o "%~1\wireguard.exe""
-	cmd /c set CC=%CC%&& set CGO_CFLAGS=%CGO_CFLAGS%&& set CGO_LDFLAGS=%CGO_LDFLAGS%&& %GO_CMD% || exit /b 1
+	setlocal
+	set "CC=%CC%"
+	set "CGO_CFLAGS=%CGO_CFLAGS%"
+	set "CGO_LDFLAGS=%CGO_LDFLAGS%"
+	go build -tags load_wgnt_from_rsrc -ldflags "-H windowsgui -s -w" -trimpath -buildvcs=false -v -o "%~1\wireguard.exe" || exit /b 1
+	endlocal
 
 	if not exist "%~1\wg.exe" (
-		del .deps\src\*.exe .deps\src\*.o .deps\src\wincompat\*.o .deps\src\wincompat\*.lib 2> NUL
-		make --no-print-directory -C .deps\src PLATFORM=windows CC="%CC%" WINDRES=%~2-w64-mingw32-windres V=1 RUNSTATEDIR= SYSTEMDUNITDIR= -j%NUMBER_OF_PROCESSORS% || exit /b 1
-		move /Y .deps\src\wg.exe "%~1\wg.exe" > NUL || exit /b 1
+	    del .deps\src\*.exe .deps\src\*.o .deps\src\wincompat\*.o .deps\src\wincompat\*.lib 2> NUL
+	    make --no-print-directory -C .deps\src PLATFORM=windows CC="%CC%" WINDRES=%~2-w64-mingw32-windres V=1 RUNSTATEDIR= SYSTEMDUNITDIR= -j%NUMBER_OF_PROCESSORS% || exit /b 1
+	    move /Y .deps\src\wg.exe "%~1\wg.exe" > NUL || exit /b 1
 	)
 	goto :eof
 
