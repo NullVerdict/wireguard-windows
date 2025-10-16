@@ -14,67 +14,46 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            ext: ".exe"
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.x'
-          check-latest: true
+          check-latest: false
 
-      - name: Cache Go build & module cache
+      - name: Cache deps and toolchain
         uses: actions/cache@v4
         with:
           path: |
+            .deps
             ~/.cache/go-build
-            $HOME/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+            ${{ env:GOPATH }}\pkg\mod
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-deps-
 
       - name: Show Go version
         run: go version
+        shell: powershell
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Build binaries (finds all main packages and builds them)
-        shell: bash
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
-        run: |
-          set -e
-          mkdir -p build
-          mains=($(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' || true))
-          if [ ${#mains[@]} -eq 0 ]; then
-            echo "No main packages found; attempting to build repository root as a binary"
-            go build -trimpath -ldflags "-s -w" -o build/${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
-          else
-            for p in "${mains[@]}"; do
-              binname=$(basename "$p")
-              out=build/${binname}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
-              echo "Building $p -> $out"
-              go build -trimpath -ldflags "-s -w" -o "$out" "$p"
-            done
-          fi
+      - name: Run Windows build script
+        shell: cmd
+        run: call .\build.bat
 
       - name: Upload build artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: build/**
+          name: build-windows
+          path: |
+            build\**
+            x86\**
+            amd64\**
+            arm64\**
           retention-days: 7
