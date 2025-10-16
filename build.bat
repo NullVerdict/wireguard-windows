@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 set BUILDDIR=%~dp0
-set PATH=%BUILDDIR%.deps\llvm-mingw\bin;%BUILDDIR%.deps;%PATH%
+set PATH=%BUILDDIR%.deps\llvm-mingw\bin;%BUILDDIR%.deps\clang\bin;%BUILDDIR%.deps;%PATH%
 set PATHEXT=.exe
 cd /d %BUILDDIR% || exit /b 1
 
@@ -16,22 +16,28 @@ if exist .deps\prepared goto :render
 	set LLVM_TAG=%LLVM_TAG:"=%
 	call :download llvm-mingw.zip https://github.com/mstorsjo/llvm-mingw/releases/download/%LLVM_TAG%/llvm-mingw-%LLVM_TAG%-msvcrt-x86_64.zip || goto :error
 
-	rem --- ImageMagick (последний стабильный релиз)
+	rem --- CLANG (официальный prebuilt релиз LLVM)
+	for /f "tokens=2 delims=:," %%v in ('curl -s https://api.github.com/repos/llvm/llvm-project/releases/latest ^| findstr /i "tag_name"') do set CLANG_TAG=%%~v
+	set CLANG_TAG=%CLANG_TAG:"=%
+	call :download clang.zip https://github.com/llvm/llvm-project/releases/download/%CLANG_TAG%/LLVM-%CLANG_TAG%-win64.zip || goto :error
+	rename LLVM-%CLANG_TAG%-win64 clang
+
+	rem --- ImageMagick
 	for /f "tokens=2 delims=:," %%v in ('curl -s https://api.github.com/repos/ImageMagick/ImageMagick/releases/latest ^| findstr /i "tag_name"') do set IM_TAG=%%~v
 	set IM_TAG=%IM_TAG:"=%
 	call :download imagemagick.zip https://imagemagick.org/archive/binaries/ImageMagick-%IM_TAG%-portable-Q16-x64.zip || goto :error
 
-	rem --- GNU Make (последний без guile для Win32)
+	rem --- GNU Make
 	for /f "tokens=2 delims=:," %%v in ('curl -s https://api.github.com/repos/ezwinports/make/releases/latest ^| findstr /i "tag_name"') do set MAKE_TAG=%%~v
 	set MAKE_TAG=%MAKE_TAG:"=%
 	call :download make.zip https://github.com/ezwinports/make/releases/download/%MAKE_TAG%/make-%MAKE_TAG%-without-guile-w32-bin.zip || goto :error
 
-	rem --- wireguard-tools (последний)
+	rem --- wireguard-tools
 	for /f "tokens=2 delims=:," %%v in ('curl -s https://api.github.com/repos/WireGuard/wireguard-tools/commits ^| findstr /i "sha" ^| findstr /v "parent"') do if not defined WG_SHA set WG_SHA=%%~v
 	set WG_SHA=%WG_SHA:"=%
 	call :download wireguard-tools.zip https://git.zx2c4.com/wireguard-tools/snapshot/wireguard-tools-%WG_SHA%.zip || goto :error
 
-	rem --- wireguard-nt (фиксированная ссылка, релизы закрыты)
+	rem --- wireguard-nt
 	call :download wireguard-nt.zip https://download.wireguard.com/wireguard-nt/wireguard-nt-0.10.1.zip || goto :error
 
 	copy /y NUL prepared > NUL || goto :error
@@ -76,11 +82,11 @@ if exist .deps\prepared goto :render
 	%~2-w64-mingw32-windres -I ".deps\wireguard-nt\bin\%~1" -DWIREGUARD_VERSION_ARRAY=%WIREGUARD_VERSION_ARRAY% -DWIREGUARD_VERSION_STR=%WIREGUARD_VERSION% -i resources.rc -o "resources_%~3.syso" -O coff -c 65001 || exit /b %errorlevel%
 	set CGO_ENABLED=1
 	set CC=%~2-w64-mingw32-gcc
-	set CFLAGS=-march=core-avx2
+	set CFLAGS=-march=skylake
 	go build -tags load_wgnt_from_rsrc -ldflags="-H windowsgui -s -w" -trimpath -buildvcs=false -v -o "%~1\wireguard.exe" || exit /b 1
 	if not exist "%~1\wg.exe" (
 		del .deps\src\*.exe .deps\src\*.o .deps\src\wincompat\*.o .deps\src\wincompat\*.lib 2> NUL
-		set LDFLAGS=-s -march=core-avx2
+		set LDFLAGS=-s -march=skylake
 		make --no-print-directory -C .deps\src PLATFORM=windows CC=%~2-w64-mingw32-gcc WINDRES=%~2-w64-mingw32-windres V=1 RUNSTATEDIR= SYSTEMDUNITDIR= -j%NUMBER_OF_PROCESSORS% || exit /b 1
 		move /Y .deps\src\wg.exe "%~1\wg.exe" > NUL || exit /b 1
 	)
